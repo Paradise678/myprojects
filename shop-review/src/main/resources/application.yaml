@@ -1,0 +1,74 @@
+server:
+  port: 8081
+spring:
+  application:
+    name: hmdp
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/hmdp?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: ${MYSQL_PASSWORD:840614}
+  redis:
+    host: ${REDIS_HOST:192.168.6.128}
+    port: 6379
+    password: ${REDIS_PASSWORD:840614}
+    lettuce:
+      pool:
+        max-active: 10
+        max-idle: 10
+        min-idle: 1
+        time-between-eviction-runs: 10s
+  jackson:
+    default-property-inclusion: non_null # JSON处理时忽略非空字段
+mybatis-plus:
+  type-aliases-package: com.hmdp.entity # 别名扫描包
+logging:
+  level:
+    com.hmdp: debug
+
+# ==================== RocketMQ ====================
+rocketmq:
+  name-server: ${ROCKETMQ_NAMESRV:127.0.0.1:9876}
+  producer:
+    group: seckill-producer-group
+    send-message-timeout: 3000
+
+# ==================== 滑动窗口限流 ====================
+rate-limit:
+  # 总开关：true 开启限流（默认），false 关闭（用于 T4 消费并行化测试，排除限流干扰）
+  enabled: true
+
+seckill:
+  consumer:
+    # 单实例消费线程数（并行消费），多实例部署时每个实例按此参数生效
+    thread-min: 10 
+    thread-max: 20   
+    # 业务失败最大重试次数，超过后转入死信 Topic（seckill-order-dlq-topic）
+    max-retry: 3
+    # 置为 true 可模拟下游业务失败，验证重试与死信链路
+    simulate-fail: false
+  reconcile:
+    # 对账任务执行间隔（毫秒），默认 5 分钟
+    interval-ms: 300000
+
+# ==================== 店铺多级缓存 ====================
+shop:
+  local-cache:
+    # L1 本地缓存（Caffeine）：容量上限与写后过期时间
+    # TTL 短（5s）是多实例下本地缓存不一致的时间上限，属于一致性取舍
+    max-size: 1000
+    ttl-seconds: 5
+
+# ==================== 监控指标 ====================
+# /actuator/prometheus 供 Prometheus 抓取；/actuator/health 用于健康检查
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: shop-review

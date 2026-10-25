@@ -1,0 +1,86 @@
+services:
+  mysql:
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql   # SQL 打进镜像，避免 Windows 挂载缓存导致初始化读到旧文件
+    image: hmdp-mysql:8.0
+    container_name: hmdp-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "840614"
+      MYSQL_DATABASE: hmdp
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    volumes:
+      - hmdp-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p840614"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: hmdp-redis
+    command: redis-server --requirepass 840614 --appendonly yes
+    volumes:
+      - hmdp-redis-data:/data
+    restart: unless-stopped
+
+  app:
+    build: .
+    # 注意：多实例扩容（docker compose up -d --scale app=3）时不能设置固定 container_name
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_HOST: mysql        # 覆盖 yaml 里的 localhost
+      REDIS_HOST: redis        # 覆盖 yaml 里的 192.168.6.128
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_REDIS_PASSWORD: "840614"
+      ROCKETMQ_NAMESRV: rocketmq-namesrv:9876
+      # 每个实例的消费线程数，扩容后单实例并行度可按需调低
+      SECKILL_CONSUMER_THREADMIN: 10
+      SECKILL_CONSUMER_THREADMAX: 20
+      # 限流总开关：T4 消费并行化测试时设为 false，排除限流干扰；其余测试保持 true
+      RATE_LIMIT_ENABLED: "true"
+      SECKILL_CONSUMER_SIMULATEFAIL: "false"    # T7 验证时临时设为 true，其余时间保持 false
+    ports:
+      - "8081:8081"            # 固定端口；T4 多实例对比用单实例调线程数实现，无需 --scale
+    depends_on:
+      mysql:
+        condition: service_healthy   # 等 MySQL 就绪并完成初始化再启动应用
+      redis:
+        condition: service_started
+      rocketmq-broker:
+        condition: service_started
+    restart: unless-stopped
+
+  rocketmq-namesrv:
+    image: apache/rocketmq:4.9.7
+    container_name: hmdp-rocketmq-namesrv
+    command: sh mqnamesrv
+    environment:
+      JAVA_OPT_EXT: "-Xms256m -Xmx256m"
+    ports:
+      - "9876:9876"
+    restart: unless-stopped
+
+  rocketmq-broker:
+    image: apache/rocketmq:4.9.7
+    container_name: hmdp-rocketmq-broker
+    # 不用官方 runbroker.sh（GC 日志目录在容器里创建失败导致静默退出），
+    # 直接显式 java 启动；-Duser.home 让日志/存储落在容器可写层
+    command: ["sh", "-c", "exec java -server -Xms512m -Xmx512m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=320m -Duser.home=/home/rocketmq -cp '/home/rocketmq/rocketmq-4.9.7/conf:/home/rocketmq/rocketmq-4.9.7/lib/*' org.apache.rocketmq.broker.BrokerStartup -n rocketmq-namesrv:9876 -c /home/rocketmq/conf/broker.conf"]
+    volumes:
+      - ./rocketmq/broker.conf:/home/rocketmq/conf/broker.conf
+    ports:
+      - "10911:10911"
+      - "10909:10909"
+    depends_on:
+      - rocketmq-namesrv
+    restart: unless-stopped
+
+volumes:
+  hmdp-mysql-data:
+  hmdp-redis-data:

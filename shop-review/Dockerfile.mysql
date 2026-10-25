@@ -1,0 +1,3 @@
+FROM mysql:8.0
+COPY src/main/resources/db/hmdp.sql /docker-entrypoint-initdb.d/
+COPY src/main/resources/db/plan_b_rocketmq.sql /docker-entrypoint-initdb.d/
