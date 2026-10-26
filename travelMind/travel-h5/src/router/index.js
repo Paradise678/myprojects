@@ -27,6 +27,16 @@ const routes = [
         path: '/detail',     // 行程详情页：展示 AI 生成的多日行程规划结果
         name: 'Detail',
         component: () => import('../views/Detail.vue')
+    },
+    {
+        path: '/login',      // 登录/注册页：账号密码登录，新用户可切换注册
+        name: 'Login',
+        component: () => import('../views/Login.vue')
+    },
+    {
+        path: '/history',    // 历史行程页：展示当前账号的历史行程规划记录
+        name: 'History',
+        component: () => import('../views/History.vue')
     }
 ]
 
@@ -34,6 +44,16 @@ const routes = [
 const router = createRouter({
     history: createWebHistory(),  // 使用浏览器 History API，URL 不带 #
     routes                        // 挂载上面定义的路由表
+})
+
+// ===== 全局前置守卫：未登录访问受保护页面时重定向到登录页 =====
+// 登录后通过 redirect 参数跳回原来的目标页面
+router.beforeEach((to) => {
+    const token = localStorage.getItem('token')
+    if (!token && to.name !== 'Login') {
+        return { path: '/login', query: { redirect: to.fullPath } }
+    }
+    return true
 })
 
 export default router

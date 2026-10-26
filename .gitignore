@@ -32,3 +32,5 @@ Thumbs.db
 # 临时文件
 *.tmp
 *.bak
+
+.env
