@@ -4,9 +4,80 @@
 server:
   port: 3200                    # 服务监听端口，前端请求需指向此端口
 
-# 大模型（LLM）调用配置
-# 本项目通过 SiliconFlow（硅基流动）平台的兼容 OpenAI 格式接口调用大模型
-llm:
-  base-url: https://api.siliconflow.cn/v1   # 平台 API 基础地址
-  model: Pro/zai-org/GLM-5.1                # 使用的模型名称（需在平台上确认可用）
-  api-key: ${LLM_API_KEY:}   # 从环境变量 LLM_API_KEY 读取密钥（IDEA/systemd/compose 任一处注入即可）
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}      # travelmind-redis 容器（与 hmdp-redis 隔离）
+      port: ${REDIS_PORT:6380}
+      password: ${REDIS_PASSWORD:840614}
+      database: 1                        # 使用 db 1，保持数据隔离约定
+      timeout: 5s
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3307}/travelmind?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:840614}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+# MyBatis-Plus
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
+# JWT 登录令牌
+jwt:
+  # HS256 要求 ≥ 256bit，本地默认值仅供开发，生产用环境变量覆盖
+  secret: ${JWT_SECRET:travelmind-dev-secret-key-please-override-in-production-0123456789}
+  expire-days: 7                        # 有效期 7 天
+
+# LangChain4j 大模型配置（OpenAI 兼容协议，对接硅基流动 SiliconFlow 平台）
+# chat-model：非流式调用，用于行程规划（结构化输出 + Function Calling）
+# streaming-chat-model：流式调用，用于 AI 对话（SSE 逐块推送）
+# 两个模型 Bean 由 LangChainConfig 手动构建（挂载指标监听器），读取下列配置项
+langchain4j:
+  open-ai:
+    chat-model:
+      base-url: https://api.siliconflow.cn/v1   # 平台 API 基础地址
+      api-key: ${LLM_API_KEY:}                  # 从环境变量 LLM_API_KEY 读取密钥
+      model-name: Pro/zai-org/GLM-5.1           # 使用的模型名称
+      temperature: 0.7
+      max-tokens: 8192                          # 单次回复 Token 上限（行程 JSON 较长，需 ≥8k 避免截断）
+    streaming-chat-model:
+      base-url: https://api.siliconflow.cn/v1
+      api-key: ${LLM_API_KEY:}
+      model-name: Pro/zai-org/GLM-5.1
+      temperature: 0.7
+      max-tokens: 8192
+    # Embedding 模型：RAG 文档向量化（硅基流动 BAAI/bge-m3，与 chat 共用 base-url/api-key）
+    embedding-model:
+      base-url: https://api.siliconflow.cn/v1
+      api-key: ${LLM_API_KEY:}
+      model-name: BAAI/bge-m3
+
+# 接口限流：Redis ZSet + Lua 滑动窗口，多实例共享计数
+rate-limit:
+  enabled: ${RATE_LIMIT_ENABLED:true}               # 限流总开关
+  window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}   # 滑动窗口长度（秒）
+  max-requests: ${RATE_LIMIT_MAX_REQUESTS:10}       # 窗口内单 IP 单接口最大请求数
+
+# Resilience4j 熔断器：保护 LLM 调用链路
+resilience4j:
+  circuitbreaker:
+    instances:
+      llm:
+        sliding-window-type: count_based        # 基于调用次数的滑动窗口
+        sliding-window-size: 10                 # 统计最近 10 次调用
+        minimum-number-of-calls: 5              # 至少 5 次调用后才计算失败率
+        failure-rate-threshold: 50              # 失败率 ≥50% 触发熔断
+        wait-duration-in-open-state: 30s        # 熔断 30s 后进入半开状态试探
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+
+# Actuator + Prometheus 指标暴露
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: always

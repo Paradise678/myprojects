@@ -3,6 +3,7 @@
  * 职责：创建 Vue 应用实例，注册全局插件（Vant UI 组件库、路由），挂载到 DOM
  */
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'      // Pinia 状态管理（用户登录态）
 // import './style.css'
 import App from './App.vue'           // 根组件
 import Vant from 'vant'               // Vant 移动端 UI 组件库
@@ -12,6 +13,9 @@ import './styles/common.css'          // 项目全局公共样式
 
 // 创建 Vue 应用实例
 const app = createApp(App)
+
+// 注册 Pinia 状态管理（需在路由守卫读取 store 之前完成注册）
+app.use(createPinia())
 
 // 注册 Vant 组件库（全局可用所有 van-* 组件，如 van-button、van-field 等）
 app.use(Vant)

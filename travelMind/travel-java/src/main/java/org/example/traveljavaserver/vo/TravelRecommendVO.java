@@ -20,6 +20,7 @@ public class TravelRecommendVO {
     private BudgetBreakdown budgetBreakdown;      // 预算明细
     private List<String> tips;        // 温馨提示列表
     private List<String> warnings;    // 注意事项列表
+    private List<String> citations;   // 本次规划引用的知识库文档名列表（服务端填充，非模型输出）
     private String error;             // 错误信息（失败时填充）
     private String rawResponse;       // 大模型原始回复（解析失败时保留，便于排查）
 

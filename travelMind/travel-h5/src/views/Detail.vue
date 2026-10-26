@@ -164,26 +164,48 @@ const goToChat = () => {
 /**
  * 调用后端生成行程规划
  * 请求 POST /recommend，参数为城市、预算、天数
- * 响应拦截器已自动解包，res 即为后端 data 字段里的 TravelRecommendVO
+ * 响应拦截器已自动解包，res 即为后端 data 字段里的 TravelRecommendVO；
+ * 业务失败（success=false，含限流 429）会被拦截器 reject，走 catch 分支展示错误。
  */
 const fetchTripData = async () => {
-  const res = await post("recommend", {
-    city: formData.city,
-    budget: formData.budget,
-    days: formData.days,
-  });
-  isLoading.value = false;
-  // 判断后端返回的业务是否成功（success 字段为 false 表示失败）
-  if (res && res.success != false) {
+  try {
+    const res = await post("recommend", {
+      city: formData.city,
+      budget: formData.budget,
+      days: formData.days,
+    });
+    isLoading.value = false;
     tripData.value = res;
-  } else {
-    // 失败则把后端的 error 信息展示出来
-    errorMsg.value = res.error;
+  } catch (e) {
+    isLoading.value = false;
+    // 失败则把后端的错误信息展示出来（含限流提示、AI 生成失败等）
+    errorMsg.value = e.message || "行程生成失败，请稍后重试";
   }
 };
 
-// 页面挂载时：从 URL 读取参数，校验完整后立即发起行程生成请求
+// 页面挂载时：两种进入方式
+// 1. 历史模式（scene=history）：从 sessionStorage 读取已保存的行程 JSON，直接展示，不再调 AI
+// 2. 规划模式：从 URL 读取参数，校验完整后立即发起行程生成请求
 onMounted(() => {
+  if (route.query.scene === "history") {
+    const cached = sessionStorage.getItem("historyPlan");
+    if (cached) {
+      try {
+        const plan = JSON.parse(cached);
+        formData.city = plan.city;
+        formData.budget = plan.totalBudget;
+        formData.days = plan.days;
+        tripData.value = plan;
+      } catch (e) {
+        errorMsg.value = "行程数据解析失败";
+      }
+    } else {
+      errorMsg.value = "未找到行程数据";
+    }
+    isLoading.value = false;
+    return;
+  }
+
   formData.city = route.query.city;
   formData.budget = route.query.budget;
   formData.days = route.query.days;

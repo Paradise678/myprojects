@@ -10,8 +10,9 @@
  *   响应拦截器会自动取出 data 字段返回给业务层，业务层直接拿到业务数据。
  */
 import axios from 'axios'
+import router from '../router'
 
-// 创建 axios 实例
+// 创建 axios 实例（业务接口）
 const request = axios.create({
     baseURL: '/api/travel',  // 相对路径，开发环境由 Vite 代理、生产环境由 Nginx 反向代理到后端
     timeout: 300000,                               // 请求超时时间（毫秒），AI 生成较慢故设为 5 分钟
@@ -20,10 +21,22 @@ const request = axios.create({
     }
 })
 
+// 认证接口实例（登录/注册走 /api/auth 前缀，无需携带 Token）
+const authRequest = axios.create({
+    baseURL: '/api/auth',
+    timeout: 30000,
+    headers: {
+        'Content-Type': 'application/json'
+    }
+})
 
-// ===== 请求拦截器：在请求发出前做统一处理（如加 token），目前直接放行 =====
+// ===== 请求拦截器：自动携带 JWT Token =====
 request.interceptors.request.use(
     config => {
+        const token = localStorage.getItem('token')
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`
+        }
         return config
     },
     error => {
@@ -31,17 +44,41 @@ request.interceptors.request.use(
     }
 )
 
+/**
+ * 401 统一处理：Token 缺失/过期 → 清空登录态并跳转登录页
+ */
+const handleUnauthorized = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('username')
+    const current = router.currentRoute.value
+    // 已在登录页时不重复跳转，避免循环
+    if (current.name !== 'Login') {
+        router.replace({ path: '/login', query: { redirect: current.fullPath } })
+    }
+}
+
 // ===== 响应拦截器：统一处理后端返回的数据 =====
 // 后端返回结构为 { success, code, message, data, error }，
 // 这里自动取出 response.data.data（即业务数据）返回，业务层无需手动解包。
-request.interceptors.response.use(
-    response => {
-        return response.data.data   // 直接返回业务数据，抛掉外层的 Result 包装
-    },
-    error => {
-        return Promise.reject(error)
+// HTTP 401 表示未登录/Token 失效，统一清登录态并跳登录页；
+// 业务失败（success=false）时按 message/error 提示并 reject。
+const onResponse = response => {
+    const body = response.data
+    // 业务失败（如密码错误）：抛出带后端提示信息的错误，由调用方 showToast
+    if (body && body.success === false) {
+        return Promise.reject(new Error(body.message || body.error || '请求失败'))
     }
-)
+    return body.data   // 直接返回业务数据，抛掉外层的 Result 包装
+}
+const onResponseError = error => {
+    if (error.response && error.response.status === 401) {
+        handleUnauthorized()
+    }
+    return Promise.reject(error)
+}
+
+request.interceptors.response.use(onResponse, onResponseError)
+authRequest.interceptors.response.use(onResponse, onResponseError)
 
 /**
  * 发送 POST 请求
@@ -63,6 +100,16 @@ export function get(url, params) {
     return request.get(url, { params })
 }
 
+/**
+ * 发送认证相关 POST 请求（登录/注册，/api/auth 前缀）
+ * @param {string} url - 接口路径（login / register）
+ * @param {object} data - 请求体参数 { username, password }
+ * @returns {Promise} 后端返回的业务数据（{ token, username }）
+ */
+export function authPost(url, data) {
+    return authRequest.post(url, data)
+}
+
 // ===== 处理流式接口（SSE）：用于 AI 对话，边生成边显示 =====
 
 /**
@@ -82,14 +129,27 @@ export async function fetchStream(url, data, onChunk, onComplete, onError) {
 
     try {
         // 发起请求（注意：流式接口地址与普通接口一致，都走后端 /api/travel 前缀）
+        // 手动携带 JWT Token（fetch 不走 axios 拦截器）
+        const headers = {
+            'Content-Type': 'application/json'
+        }
+        const token = localStorage.getItem('token')
+        if (token) {
+            headers.Authorization = `Bearer ${token}`
+        }
         const response = await fetch(`/api/travel/${url}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify(data),
             signal: controller.signal   // 绑定中止信号
         })
+
+        // Token 失效/未登录：清空登录态并跳登录页
+        if (response.status === 401) {
+            handleUnauthorized()
+            onError('登录已过期，请重新登录')
+            return
+        }
 
         // 获取响应体的可读流读取器，用于逐块读取数据
         const reader = response.body.getReader()

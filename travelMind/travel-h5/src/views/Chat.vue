@@ -148,9 +148,10 @@ const fetchAIResponse = (userMsg) => {
   let fullResponse = "";
 
   // 调用流式接口：三个回调分别处理"收到分片"、"流结束"、"出错"
+  // 携带 sessionId：后端按会话隔离 Redis 中的历史记忆，实现多轮对话上下文
   fetchStream(
     "chat",
-    { message: userMsg },
+    { message: userMsg, sessionId: getSessionId() },
     (chunk) => {
       // 每收到一块内容，累加到 fullResponse 并更新到最后一条 AI 消息上
       fullResponse += chunk;
@@ -193,6 +194,21 @@ const addUserMessage = (content) => {
   });
 };
 const route = useRoute();
+
+/**
+ * 获取当前会话 ID：首次访问时生成 UUID 并存入 localStorage，
+ * 后续对话复用同一 ID，后端据此从 Redis 加载该会话的历史消息（多轮记忆）。
+ * 退出登录时会清空，换新账号/重新登录后自动开启新会话。
+ */
+const getSessionId = () => {
+  let sid = localStorage.getItem("chatSessionId");
+  if (!sid) {
+    sid = crypto.randomUUID();
+    localStorage.setItem("chatSessionId", sid);
+  }
+  return sid;
+};
+
 // 页面挂载时：如果是从详情页跳转过来（scene=detail），自动填入城市相关问题
 onMounted(() => {
   if (route.query.scene === "detail" && route.query.city) {
