@@ -1,8 +1,0 @@
-target/
-.idea/
-*.iml
-.git/
-.gitignore
-README.md
-docker-compose.yml
-mysql-data/
