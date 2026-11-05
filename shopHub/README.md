@@ -1,4 +1,4 @@
-# ShopHub・店汇通 — 微服务高并发点评平台
+# ShopHub・店汇通 — 微服务高并发秒杀平台
 
 > 基于 Spring Boot 2.7 + Dubbo 3.2 + RocketMQ 的多模块微服务架构，覆盖 **秒杀下单 → 支付 → 核销 → 退款** 完整交易链路。核心亮点：Redis Lua 原子预扣 + RocketMQ 事务消息削峰、支付 5 态状态机 + 渠道 SPI 扩展、库存双重回补（DB + Redis）、Knife4j + Actuator/Micrometer 内置可观测端点。
 
@@ -6,7 +6,7 @@
 
 ## 📋 项目简介
 
-**ShopHub・店汇通** 是一个多模块微服务架构的社区点评平台。相较于单体 hmdp 项目，ShopHub 将业务拆分为 5 个独立服务 + 1 个 Gateway，通过 **Dubbo RPC** 实现服务间调用、**ZooKeeper** 作为注册中心、**RocketMQ** 处理秒杀事务消息与支付结果异步通知。
+**ShopHub・店汇通** 是一个多模块微服务架构的秒杀平台。ShopHub 将业务拆分为 5 个独立服务 + 1 个 Gateway，通过 **Dubbo RPC** 实现服务间调用、**ZooKeeper** 作为注册中心、**RocketMQ** 处理秒杀事务消息与支付结果异步通知。
 
 核心业务链路：
 
