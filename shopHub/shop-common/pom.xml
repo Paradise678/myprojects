@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- shop-common：共享模块，纯 JAR，不独立运行 -->
+    <groupId>com.shophub</groupId>
+    <artifactId>shop-common</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>shop-common</name>
+    <description>共享 DTO / 枚举 / 工具类 / 实体基类</description>
+
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <hutool.version>5.8.22</hutool.version>
+        <mybatis-plus.version>3.5.3.1</mybatis-plus.version>
+        <lombok.version>1.18.30</lombok.version>
+        <jackson.version>2.15.3</jackson.version>
+    </properties>
+
+    <dependencies>
+        <!-- Spring Boot Web + AOP（RateLimitAspect 用 @Around + RequestContextHolder） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>2.7.18</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+            <version>2.7.18</version>
+        </dependency>
+        <!-- Spring Boot Data Redis（SimpleRedisLock / RedisIdWorker 用 StringRedisTemplate） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <version>2.7.18</version>
+        </dependency>
+        <!-- Redisson（CacheClient） -->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+            <version>3.27.2</version>
+        </dependency>
+        <!-- Micrometer（BusinessMetrics） -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <version>1.9.17</version>
+        </dependency>
+        <!-- Hutool 工具类 -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>${hutool.version}</version>
+        </dependency>
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <!-- MyBatis Plus 注解（@TableName, @TableId 等） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-annotation</artifactId>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
+        <!-- Jackson（DTO JSON 序列化） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <!-- Jakarta Validation（@NotBlank / @NotNull / @Min） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+            <version>2.7.18</version>
+        </dependency>
+        <!-- Dubbo API（IPayService 用 @DubboService / @DubboReference 注解） -->
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo</artifactId>
+            <version>3.2.7</version>
+        </dependency>
+        <!-- OpenAPI 3 注解（@Schema / @Tag / @Operation / @Parameter） -->
+        <!-- scope=provided：编译时需要，运行时由 knife4j(springdoc) 传递引入 -->
+        <!-- 版本跟 knife4j 传递的 swagger-annotations 对齐：2.2.9 -->
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations</artifactId>
+            <version>2.2.9</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+</project>

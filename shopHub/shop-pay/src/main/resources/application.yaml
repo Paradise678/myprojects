@@ -1,0 +1,88 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: shop-pay
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.redisson.spring.starter.RedissonAutoConfiguration
+      - org.redisson.spring.starter.RedissonAutoConfigurationV2
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/shophub_pay?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: ${MYSQL_PASSWORD:840614}
+  jackson:
+    default-property-inclusion: non_null
+
+mybatis-plus:
+  type-aliases-package: com.shophub.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.shophub: debug
+    org.apache.dubbo.rpc.protocol: OFF
+
+# ==================== Dubbo ====================
+dubbo:
+  application:
+    name: shop-pay
+    qos-enable: false
+  protocol:
+    name: dubbo
+    port: 20883                 # Dubbo 随机端口改为固定，方便观察
+  registry:
+    address: ${DUBBO_REGISTRY_ADDRESS:zookeeper://127.0.0.1:2181}
+  config-center:
+    address: ${DUBBO_REGISTRY_ADDRESS:zookeeper://127.0.0.1:2181}
+  metadata-report:
+    address: ${DUBBO_REGISTRY_ADDRESS:zookeeper://127.0.0.1:2181}
+  scan:
+    base-packages: com.shophub.service
+  provider:
+    timeout: 3000
+    retries: 0                 # 支付场景禁止重试，由上层控制
+    cluster: failfast
+
+# ==================== RocketMQ ====================
+rocketmq:
+  name-server: ${ROCKETMQ_NAMESRV:127.0.0.1:9876}
+  producer:
+    group: pay-producer-group
+    send-message-timeout: 3000
+
+# ==================== 监控 ====================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: shop-pay
+
+# ==================== 支付回调签名 ====================
+pay:
+  callback:
+    secret: ${PAY_CALLBACK_SECRET:shophub-callback-dev}
+
+# ==================== Knife4j / springdoc ====================
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn

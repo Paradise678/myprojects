@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ⭐ Gateway 不继承 shopHub 父 pom！
+         shopHub 父 pom 的 <dependencies> 里有 starter-web（Tomcat）/dubbo/redis/redisson 等 14 个业务依赖，
+         全部自动继承给子模块。但 Gateway 是纯 WebFlux（Netty）项目，starter-web 跟它不兼容，
+         而且 Gateway 也完全不需要 Redis/Dubbo/MyBatis/RocketMQ 这些。
+         所以 Gateway 自己直接继承 spring-boot-starter-parent，跟业务模块解耦。 -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.7.18</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.shophub</groupId>
+    <artifactId>shop-gateway</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>shop-gateway</name>
+    <description>统一 API 网关（独立 parent，不继承业务依赖）</description>
+
+    <properties>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring-cloud.version>2021.0.8</spring-cloud.version>
+    </properties>
+
+    <!-- Spring Cloud BOM：只管版本号，import scope 不引入实际 jar -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- ⭐ 核心：Spring Cloud Gateway（WebFlux + Netty，跟 Tomcat/Servlet 完全不兼容） -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway</artifactId>
+        </dependency>
+
+        <!-- Actuator：健康检查 + Gateway 路由端点 /actuator/gateway/routes -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Prometheus 监控指标 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- Lombok：可选，Gateway 里基本不用 -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ⚠️ 故意不引 starter-web / starter-data-redis / dubbo / mybatis-plus / redisson / rocketmq / curator / zookeeper
+             这些全部是业务模块依赖，Gateway 纯路由转发不需要任何一个 -->
+    </dependencies>
+
+    <build>
+        <finalName>shop-gateway</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.shophub.ShopGatewayApplication</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

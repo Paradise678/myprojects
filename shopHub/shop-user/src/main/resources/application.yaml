@@ -1,0 +1,83 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: shop-user
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/shophub?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: ${MYSQL_PASSWORD:840614}
+  redis:
+    host: ${REDIS_HOST:192.168.6.128}
+    port: 6379
+    password: ${REDIS_PASSWORD:840614}
+    lettuce:
+      pool:
+        max-active: 10
+        max-idle: 10
+        min-idle: 1
+  jackson:
+    default-property-inclusion: non_null
+
+mybatis-plus:
+  type-aliases-package: com.shophub.entity
+
+logging:
+  level:
+    com.shophub: debug
+    org.apache.dubbo.rpc.protocol: OFF
+
+# ==================== Dubbo ====================
+dubbo:
+  application:
+    name: shop-user
+    qos-enable: false
+  protocol:
+    name: dubbo
+    port: -1
+  registry:
+    address: ${DUBBO_REGISTRY_ADDRESS:zookeeper://127.0.0.1:2181}
+  config-center:
+    address: ${DUBBO_REGISTRY_ADDRESS:zookeeper://127.0.0.1:2181}
+  metadata-report:
+    address: ${DUBBO_REGISTRY_ADDRESS:zookeeper://127.0.0.1:2181}
+  scan:
+    base-packages: com.shophub.service
+  provider:
+    timeout: 3000
+    retries: 0
+    cluster: failfast
+
+# ==================== 监控 ====================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: shop-user
+
+# ==================== Dev 调试 ====================
+app:
+  dev:
+    # 开发环境暴露验证码到 sendCode 响应体，方便 Apifox 自动化测试提取
+    expose-code: true
+
+# ==================== Knife4j / springdoc ====================
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn

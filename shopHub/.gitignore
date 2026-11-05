@@ -1,0 +1,88 @@
+# ==============================
+# Maven
+# ==============================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# ==============================
+# IDE
+# ==============================
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+### Eclipse / STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+# ==============================
+# OS
+# ==============================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# ==============================
+# 日志 & 临时
+# ==============================
+*.log
+logs/
+tmp/
+temp/
+
+# ==============================
+# JMeter 压测
+# ==============================
+*.jtl
+jmeter.log
+results/
+report/
+report-off/
+report-on/
+
+# ==============================
+# RocketMQ 日志
+# ==============================
+rmq-logs/
+rocketmq/
+
+# ==============================
+# Docker
+# ==============================
+.env
+.env.local
+.env.*.local
+docker-data/
+
+# ==============================
+# 其他
+# ==============================
+*.bak
+*.tmp
+*.swp
+*~

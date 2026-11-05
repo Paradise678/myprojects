@@ -1,0 +1,58 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: shop-gateway
+
+  cloud:
+    gateway:
+      # ============ 路由规则 ============
+      # Gateway 不接服务发现（没用 Nacos），uri 直接写死 IP:Port
+      routes:
+
+        # shop-shop (8082)：店铺浏览、类型下拉
+        - id: shop-shop
+          uri: http://${SHOP_SHOP_HOST:127.0.0.1}:8082
+          predicates:
+            - Path=/shop/**,/shop-type/**
+
+        # shop-user (8083)：用户登录/验证码/查询
+        - id: shop-user
+          uri: http://${SHOP_USER_HOST:127.0.0.1}:8083
+          predicates:
+            - Path=/user/**
+
+        # shop-seckill (8081)：优惠券、秒杀下单、图片上传
+        - id: shop-seckill
+          uri: http://${SHOP_SECKILL_HOST:127.0.0.1}:8081
+          predicates:
+            - Path=/voucher/**,/voucher-order/**,/upload/**
+
+        # shop-pay (8084)：支付创建/查询/回调
+        - id: shop-pay
+          uri: http://${SHOP_PAY_HOST:127.0.0.1}:8084
+          predicates:
+            - Path=/pay/**,/api/pay/**
+
+      # ============ HTTP 客户端超时 ============
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 15s
+
+# ============ Actuator ============
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# ============ 日志 ============
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: INFO
+    reactor.netty: WARN

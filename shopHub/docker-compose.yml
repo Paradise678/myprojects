@@ -1,0 +1,162 @@
+# ShopHub microservices full stack (10 containers)
+# Middleware: ZK / MySQL / Redis / RocketMQ (NS + Broker)
+# Apps: shop-user / shop-shop / shop-pay / shop-seckill / shop-gateway
+
+services:
+  # ========== Middleware ==========
+
+  zookeeper:
+    image: zookeeper:3.9
+    container_name: shophub-zk
+    ports: ["2181:2181"]
+    volumes: [zk-data:/data]
+    healthcheck:
+      test: ["CMD", "zkServer.sh", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql
+    image: shophub-mysql:8.0
+    container_name: shophub-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "840614"
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --default-authentication-plugin=mysql_native_password
+    ports: ["3306:3306"]
+    volumes: [mysql-data:/var/lib/mysql]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p840614"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: shophub-redis
+    command: redis-server --requirepass 840614 --appendonly yes --maxmemory 256mb
+    ports: ["6379:6379"]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "840614", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rmq-ns:
+    image: apache/rocketmq:4.9.7
+    container_name: shophub-rmq-ns
+    command: sh mqnamesrv
+    environment:
+      JAVA_OPT_EXT: "-Xms256m -Xmx256m"
+    ports: ["9876:9876"]
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9876 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rmq-broker:
+    image: apache/rocketmq:4.9.7
+    container_name: shophub-rmq-broker
+    command: ["sh", "-c", "exec java -server -Xms512m -Xmx512m -cp '/home/rocketmq/rocketmq-4.9.7/conf:/home/rocketmq/rocketmq-4.9.7/lib/*' org.apache.rocketmq.broker.BrokerStartup -n rmq-ns:9876"]
+    ports: ["10911:10911", "10909:10909"]
+    depends_on:
+      rmq-ns: {condition: service_healthy}
+
+  # ========== App Layer ==========
+
+  shop-user:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: shop-user
+    container_name: shophub-shop-user
+    environment:
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+      DUBBO_REGISTRY_ADDRESS: "zookeeper://zookeeper:2181"
+    ports: ["8083:8083"]
+    depends_on:
+      zookeeper: {condition: service_healthy}
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  shop-shop:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: shop-shop
+    container_name: shophub-shop-shop
+    environment:
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+      DUBBO_REGISTRY_ADDRESS: "zookeeper://zookeeper:2181"
+      SHOP_LOCAL-CACHE_MAX-SIZE: "1000"
+    ports: ["8082:8082"]
+    depends_on:
+      zookeeper: {condition: service_healthy}
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  shop-pay:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: shop-pay
+    container_name: shophub-shop-pay
+    environment:
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+      ROCKETMQ_NAMESRV: "rmq-ns:9876"
+      DUBBO_REGISTRY_ADDRESS: "zookeeper://zookeeper:2181"
+    ports: ["8084:8084"]
+    depends_on:
+      zookeeper: {condition: service_healthy}
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      rmq-ns: {condition: service_healthy}
+
+  shop-seckill:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: shop-seckill
+    container_name: shophub-shop-seckill
+    environment:
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+      ROCKETMQ_NAMESRV: "rmq-ns:9876"
+      DUBBO_REGISTRY_ADDRESS: "zookeeper://zookeeper:2181"
+      RATE_LIMIT_ENABLED: "false"
+      SECKILL_CONSUMER_SIMULATEFAIL: "false"
+    ports: ["8081:8081"]
+    depends_on:
+      zookeeper: {condition: service_healthy}
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      rmq-ns: {condition: service_healthy}
+
+  shop-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: shop-gateway
+    container_name: shophub-gateway
+    environment:
+      SHOP_USER_HOST: shop-user
+      SHOP_SHOP_HOST: shop-shop
+      SHOP_SECKILL_HOST: shop-seckill
+      SHOP_PAY_HOST: shop-pay
+    ports: ["8080:8080"]
+    depends_on: [shop-user, shop-shop, shop-pay, shop-seckill]
+
+volumes:
+  mysql-data:
+  redis-data:
+  zk-data:
